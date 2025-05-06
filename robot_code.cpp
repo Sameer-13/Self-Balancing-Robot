@@ -7,12 +7,12 @@
 #define ACC_W 1.0f
 #define GYRO_W 1.0f - ACC_W
 #define ACC_ERROR  6.0f / 180.f //This is the error value we measured from the accelerometer and is a constant (6 degrees)
-#define ANGLE_TOLERANCE 5.0f / 180.0f //5 degrees tolerance for stopping the motor
-#define Kp  7.0f
+#define ANGLE_TOLERANCE 1.0f / 180.0f //2 degrees tolerance for stopping the motor
+#define Kp 7.5f
 #define Ki 0.0f
-#define Kd 0.0f
-#define ALPHA 0.02f // integral = (1 - ALPHA) * integral + ALPHA * error
-#define PID_THRESH (PID_PERIOD / 3.0f)
+#define Kd 1.0f
+#define ALPHA 0.25f // integral = (1 - ALPHA) * integral + ALPHA * error
+#define PID_THRESH (PID_PERIOD / 0.1f)
 
 enum motor_state
 {
@@ -31,10 +31,14 @@ DigitalOut Bin2(p18);
 PwmOut     PWMA(p21);
 PwmOut     PWMB(p24);
 
+float X_GYRO_BIAS = 0;
+float Y_GYRO_BIAS = 0;
+float Z_GYRO_BIAS = 0;
+
 EventQueue queue;
-void updateFromPID(float);
+void updateFromPID(float, float);
 void updateAngle(float, float, float, float);
-Event<void(float)> pid(&queue, updateFromPID);
+Event<void(float, float)> pid(&queue, updateFromPID);
 Event<void(float,float,float,float)> updateAngleEvent(&queue, updateAngle);
 
 
@@ -253,13 +257,14 @@ float get_angle(float x_acc, float y_acc, float z_acc, float z_gyro)
 
 }
 
-void updateAngle(float x_acc, float y_acc, float z_acc, float z_gyro)
+void updateAngle(float x_acc, float y_acc, float z_acc, float x_gyro)
 {
-    float new_angle = get_angle(x_acc, y_acc, z_acc, z_gyro);
-    pid.post(new_angle);
+    float new_angle = get_angle(x_acc, y_acc, z_acc, x_gyro);
+    pid.post(new_angle, x_gyro);
 }
 
-void updateFromPID(float raw_angle_rad) {
+void updateFromPID(float raw_angle_rad, float x_gyro) {
+
 
     float norm_angle = raw_angle_rad / PI;
 
@@ -267,36 +272,53 @@ void updateFromPID(float raw_angle_rad) {
 
 
 
-            
     static float prev_error       = 0.0f;
     static float integral         = 0.0f;
     static float duty_cycle_prev       = 0.0f; 
-    static float prev_der         = 0.0f;
     float mag = 0;
-    float delta_derivative  = (error - prev_error) * PID_FREQ;  
+    //float delta_derivative  = (error - prev_error) * PID_FREQ;  
     float delta_e = error * PID_PERIOD;
-    delta_derivative = ALPHA * delta_derivative + (1 - ALPHA) * prev_der;
+    
+
+    float derivative = x_gyro / 250;
+    float theta_max = 30.0f;
+    float abs_t = fabs(raw_angle_rad);  
+    float scale = abs_t / theta_max;     
+    if (scale > 1) scale = 1;
+
+    float Kp_max = 1.0f / 0.524;
+    float Kd_max = 0.15 * Kp_max;
+    float Kp_eff = Kp + (Kp_max - Kp) * scale;
+    float Kd_eff = Kd + (Kd_max - Kd) * scale;
+
     if (fabs(error) > ANGLE_TOLERANCE)
         integral = (1 - ALPHA) * integral + delta_e;
-    float duty_cycle = Kp * error
+
+    float duty_cycle = Kp_eff * error
                + Ki * integral
-               + Kd * delta_derivative;
+               + Kd_eff * derivative;
+    
 
-    printf("Increment:%d\n", (int) ((duty_cycle - duty_cycle_prev) * 1000));
 
-    if((duty_cycle - duty_cycle_prev) > PID_THRESH)
-        duty_cycle += PID_THRESH;
 
-    else if((duty_cycle_prev - duty_cycle) > PID_THRESH)
-        duty_cycle -= PID_THRESH;
+    
+
+
+    float delta = duty_cycle - duty_cycle_prev; 
+
+    // clamp the change
+    if      (delta >  PID_THRESH) delta =  PID_THRESH;  
+    else if (delta < -PID_THRESH) delta = -PID_THRESH;
 
     duty_cycle_prev = duty_cycle;
-    prev_der = delta_derivative;
-    
+    duty_cycle = duty_cycle_prev + delta;   
+
 
     if      (duty_cycle >  1.0f) duty_cycle =  1.0f;
     else if (duty_cycle < -1.0f) duty_cycle = -1.0f;
 
+
+    mag = fabs(duty_cycle);
 
     if (fabs(norm_angle) < ANGLE_TOLERANCE) {
         drive_motor(STOP);
@@ -305,7 +327,6 @@ void updateFromPID(float raw_angle_rad) {
         PWMB.write(0.0f);
         integral = 0.0f;
     } else {
-        mag = fabs(duty_cycle);
         if (duty_cycle >= 0.0f) {
             drive_motor(FORWARD);
         } else {
@@ -316,8 +337,9 @@ void updateFromPID(float raw_angle_rad) {
         PWMB.write(mag);
     }
 
-    //printf("PWM: %d\n", (int) (duty_cycle * 100));
-    prev_error      = error;
+    
+
+    prev_error = error;
 }
 
 
@@ -354,6 +376,19 @@ int main()
     
 
     imu_wakeup();
+    int CALIB_ITER = 500;
+
+    for(int i = 0; i < CALIB_ITER; i++)
+    {
+        data_read = imu_read(gyro_addr);
+        X_GYRO_BIAS += data_read[0] / GYRO_SENS;
+        Y_GYRO_BIAS += data_read[1] / GYRO_SENS;
+        Z_GYRO_BIAS += data_read[2] / GYRO_SENS;
+    }
+
+    X_GYRO_BIAS /= CALIB_ITER;
+    Y_GYRO_BIAS /= CALIB_ITER;
+    Z_GYRO_BIAS /= CALIB_ITER;
 
     while (true) {
             data_read = imu_read(acc_addr);
@@ -362,19 +397,17 @@ int main()
             z_acc = data_read[2] / ACCEL_SENS;
             
             data_read = imu_read(gyro_addr);
-            x_gyro = data_read[0] / GYRO_SENS;
-            y_gyro = data_read[1] / GYRO_SENS;
-            z_gyro = data_read[2] / GYRO_SENS;
+            x_gyro = data_read[0] / GYRO_SENS - X_GYRO_BIAS;
+            y_gyro = data_read[1] / GYRO_SENS - Y_GYRO_BIAS;
+            z_gyro = data_read[2] / GYRO_SENS - Z_GYRO_BIAS;
 
             // printf(
-            //     "ACC (X,Y,Z): %d, %d, %d\n"
             //     "GYRO (X, Y, Z): %d, %d, %d\n",
-            //     (int) x_acc, (int) y_acc, (int) z_acc,
             //     (int) x_gyro, (int) y_gyro, (int) z_gyro
             // );
             // fflush(stdout);
 
-            updateAngleEvent.post(x_acc, y_acc, z_acc, z_gyro);
+            updateAngleEvent.post(x_acc, y_acc, z_acc, x_gyro);
             ThisThread::sleep_for(chrono::milliseconds((int)(PID_PERIOD * 1000)));
 
 
