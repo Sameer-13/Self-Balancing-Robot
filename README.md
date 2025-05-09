@@ -51,15 +51,10 @@ The 3D design files for the robot structure can be found at: [3D Print Files](ht
 
 *Note: The current design is quite heavy, which affects the robot's ability to balance against gravity's torque at higher angular accelerations. Consider using lighter materials or a redesigned structure for better performance.*
 
-## Code
-
-The full project code is available on GitHub:
-[https://github.com/Sameer-13/Self-Balancing-Robot](https://github.com/Sameer-13/Self-Balancing-Robot)
-
 ## Challenges Faced
 
 1. Rapid PWM value changes during tuning caused overheating issues, burning two motor drivers
-2. The initial 3D-printed structure was too heavy, limiting the robot's balancing capability
+2. The initial 3d-printed structure was too heavy, limiting the robot's balancing capability
 3. Replacing the burned motor driver required redesigning the robot to accommodate a larger driver and additional batteries
 
 ## Key Parameters
