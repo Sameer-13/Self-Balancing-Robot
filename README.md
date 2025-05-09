@@ -74,3 +74,22 @@ The project was developed using:
 - mbed library/RTOS
 - Keil Cloud Studios (studio.keil.arm.com)
 - API documentation: https://os.mbed.com/docs/mbed-os/v6.16/apis/index.html
+
+## Running the Project on LPC1768 using Keil Studio
+
+Follow these steps to run the project on your LPC1768 microcontroller:
+
+1. Sign in to ARM Keil Studio (studio.keil.arm.com)
+2. Create a new project
+3. Connect the LPC1768 to your computer via USB
+4. Choose "mbed LPC1768" in the "Build target" section in the side bar
+5. Select your device in the "Connected device" section in the side bar
+6. Install WEBUSB firmware if you haven't already:
+   - Follow the steps in this link: https://forums.mbed.com/t/new-beta-firmware-for-lpc1768/18917
+   - Note: Without this step, you will get a "USB access denied" error
+7. Enable WebUSB from Keil Studio settings
+8. Copy the C++ code into your project
+9. Save the file
+10. Build the project and save the .bin file directly to the LPC1768 device
+11. Run the program
+12. Choose the baud rate from the ">_" option (recommended: 9600)
