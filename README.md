@@ -1,7 +1,10 @@
 # Self-Balancing Robot
 
 A two-wheeled robot that balances itself using PID control and an IMU sensor.
-![WhatsApp Image 2025-05-06 at 19 54 33_92583673](https://github.com/user-attachments/assets/fb2dc30d-2523-4773-9ac1-20db582010bb)
+
+
+<img src="https://github.com/user-attachments/assets/fb2dc30d-2523-4773-9ac1-20db582010bb" alt="Self-Balancing Robot" width="400"/>
+
 
 ## Overview
 
@@ -45,7 +48,8 @@ The Proportional-Integral-Derivative (PID) controller:
 - Uses gyroscope readings directly for derivative calculations
 
 ## 3D Printing Design
-![image_2025-05-06_14-32-43](https://github.com/user-attachments/assets/f44834ba-e801-4239-b01c-0d15b295514d)
+
+<img src="https://github.com/user-attachments/assets/f44834ba-e801-4239-b01c-0d15b295514d" alt="3D Model" width="400"/>
 
 The 3D design files for the robot structure can be found at: [3D Print Files](https://makerworld.com/en/models/691734-fall-e-the-self-balancing-robot?from=search#profileId-620442)
 
